@@ -17,5 +17,7 @@
 
 3.https://zhuanlan.zhihu.com/p/91865627
 
-4. https://github.com/navigator8972/pylqr
+4.https://github.com/navigator8972/pylqr
+
+5.https://bicmr.pku.edu.cn/~wenzw/optbook/opt1.pdf
 
