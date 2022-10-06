@@ -160,6 +160,7 @@ class ILQRSolver:
         return x_init
 
     def Solve(self, x0, u_init, verbose=True):
+        print("============== ILQR starts ==============")
         # Init
         u = u_init
         x = self.InitTrajectory(x0, u)
@@ -212,4 +213,5 @@ class ILQRSolver:
                 J_opt = J_new
 
         res_dict = {'x_hist': x_hist, 'u_hist': u_hist, 'J_hist': J_hist}
+        print("============== ILQR ends ==============")
         return res_dict

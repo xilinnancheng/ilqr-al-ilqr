@@ -1,10 +1,10 @@
-from turtle import color
 import ReedsSheppPathPlanning as rs
-from ilqr import ILQRSolver, ILQRSolverParameter
 import jax.numpy as np
 import math
 from matplotlib import pyplot as plt
 from functools import partial
+from ilqr import ILQRSolver, ILQRSolverParameter
+from al_ilqr import ALILQRSolver, ALILQRSolverParameter
 
 
 def CalculateCurvature(xi_minus_1, xi, xi_plus_1, yi_minus_1, yi, yi_plus_1):
@@ -64,6 +64,17 @@ def TerminalCostFunction(x, ref_path_x, ref_path_y, ref_path_yaw, w_terminal):
     return terminal_cost
 
 
+def InequalityConstraintCostFunction(u, mu, sigma, max_delta, max_acc):
+    return 0.5 * sigma * (pow(max(mu[0]/sigma + (u[0] - max_delta), 0), 2) - pow(mu[0]/sigma, 2) +
+                          pow(max(mu[1]/sigma + (-u[0] - max_delta), 0), 2) - pow(mu[1]/sigma, 2) +
+                          pow(max(mu[2]/sigma + (u[1] - max_acc), 0), 2) - pow(mu[2]/sigma, 2) +
+                          pow(max(mu[3]/sigma + (-u[1] - max_acc), 0), 2) - pow(mu[3]/sigma, 2))
+
+
+def InequalityConstraintFunction(u, mu, sigma, max_delta, max_acc):
+    return np.array([max(u[0] - max_delta + mu[0]/sigma, 0.0), max(-u[0] - max_delta + mu[1]/sigma, 0.0), max(u[1] - max_acc + mu[2]/sigma, 0.0), max(-u[1] - max_acc + mu[3]/sigma, 0.0)])
+
+
 def BicycleModel(x_curr, u_curr, delta_t):
     wheel_base = 2.84
     x_next = []
@@ -76,41 +87,18 @@ def BicycleModel(x_curr, u_curr, delta_t):
     return np.array(x_next)
 
 
-def BicycleModeldx(x_curr, u_curr, delta_t):
-    wheel_base = 2.84
-    theta_k = x_curr[2]
-    v_k = x_curr[3]
-
-    delta_k = u_curr[0]
-    return np.array([[1, 0, -v_k * np.sin(theta_k) * delta_t, np.cos(theta_k) * delta_t],
-                     [0, 1, v_k * np.cos(theta_k) * delta_t,
-                      np.sin(theta_k) * delta_t],
-                     [0, 0, 1, np.tan(delta_k) / wheel_base * delta_t],
-                     [0, 0, 0, 1]])
-
-
-def BicycleModeldu(x_curr, u_curr, delta_t):
-    wheel_base = 2.84
-    v_k = x_curr[3]
-    delta_k = u_curr[0]
-    return np.array([[0, 0],
-                     [0, 0],
-                     [0, v_k / (wheel_base * pow(np.cos(delta_k), 2))
-                      * delta_t],
-                     [0, delta_t]])
-
-
 def main():
     print("ILQR Smoother Demo")
     start_pose = [30, 10, np.deg2rad(0.0)]
     goal_pose = [40, 7, np.deg2rad(0.0)]
     wheel_base = 2.84
     max_steer = 0.5
+    max_acc = 1.0
     step_size = 0.5
     delta_t = 1
-    only_show_opt_result = True
-
     max_curvature = math.tan(max_steer) / wheel_base
+
+    # Rs path
     rs_paths = rs.calc_paths(start_pose[0], start_pose[1], start_pose[2], goal_pose[0],
                              goal_pose[1], goal_pose[2], max_curvature, step_size)
 
@@ -131,23 +119,7 @@ def main():
         goal_pose[2]), dy=2.0 * math.sin(goal_pose[2]), width=.08, color='r')
     plt.title("Side Parking Scenario")
 
-    w_ref = 1
-    w_terminal = 100
-    w_delta = 1
-    w_acc = 1
-    state_cost_func = partial(
-        StateCostFunction, ref_path_x=best_rs_path.x, ref_path_y=best_rs_path.y, ref_path_yaw=best_rs_path.yaw, w_ref=w_ref, w_delta=w_delta, w_acc=w_acc)
-    terminal_cost_func = partial(
-        TerminalCostFunction, ref_path_x=best_rs_path.x, ref_path_y=best_rs_path.y, ref_path_yaw=best_rs_path.yaw, w_terminal=w_terminal)
-
-    ilqr_solver_param = ILQRSolverParameter(1e-3, 50, 1e-4, 10, 0.5, 1e-4)
-    ilqr_solver = ILQRSolver(BicycleModel, state_cost_func, terminal_cost_func, len(
-        best_rs_path.x) - 1, delta_t, ilqr_solver_param)
-
-    x0 = np.array([30, 10, np.deg2rad(0.0), step_size/delta_t])
-    u0 = [np.array([0.0, 0.0])] * (len(best_rs_path.x) - 1)
-    res = ilqr_solver.Solve(x0, u0)
-
+    # Viz rs path
     for i in range(len(best_rs_path.x)):
         plt.figure(num=1)
         plt.plot(best_rs_path.x[i],
@@ -159,54 +131,120 @@ def main():
         best_rs_path.x, best_rs_path.y))
     plt.title("Path Curvature")
 
-    for i in range(len(res['x_hist'])):
-        x = res['x_hist'][i]
-        u = res['u_hist'][i]
-        x_list = []
-        y_list = []
-        yaw_list = []
-        v_list = []
-        delta_list = []
-        acc_list = []
-        for j in range(len(x)):
-            x_list.append(x[j][0])
-            y_list.append(x[j][1])
-            yaw_list.append(x[j][2])
-            v_list.append(x[j][3])
+    w_ref = 1
+    w_terminal = 100
+    w_delta = 1
+    w_acc = 1
+    state_cost_func = partial(
+        StateCostFunction, ref_path_x=best_rs_path.x, ref_path_y=best_rs_path.y, ref_path_yaw=best_rs_path.yaw, w_ref=w_ref, w_delta=w_delta, w_acc=w_acc)
+    terminal_cost_func = partial(
+        TerminalCostFunction, ref_path_x=best_rs_path.x, ref_path_y=best_rs_path.y, ref_path_yaw=best_rs_path.yaw, w_terminal=w_terminal)
+    in_con_func = partial(InequalityConstraintFunction,
+                          max_delta=max_steer, max_acc=max_acc)
+    in_con_cost_func = partial(
+        InequalityConstraintCostFunction, max_delta=max_steer, max_acc=max_acc)
 
-        for j in range(len(u)):
-            delta_list.append(u[j][0])
-            acc_list.append(u[j][1])
+    # Init position and control input
+    x0 = np.array([30, 10, np.deg2rad(0.0), 0.0])
+    u0 = [np.array([0.0, 0.0])] * (len(best_rs_path.x) - 1)
 
-        if (only_show_opt_result and i == len(res['x_hist']) - 1) or not only_show_opt_result:
-            plt.figure(num=1)
-            plt.plot(x_list,
-                     y_list, marker="o")
-            plt.figure(num=2)
-            plt.plot(CalculatePathCurvature(
-                x_list, y_list))
-            plt.grid()
+    # ilqr
+    ilqr_solver_param = ILQRSolverParameter(1e-3, 50, 1e-4, 10, 0.5, 1e-4)
+    ilqr_solver = ILQRSolver(BicycleModel, state_cost_func, terminal_cost_func, len(
+        best_rs_path.x) - 1, delta_t, ilqr_solver_param)
+    res_ilqr = ilqr_solver.Solve(x0, u0)
 
-            plt.figure(num=3)
-            plt.subplot(411)
-            plt.plot(yaw_list)
-            plt.grid()
-            plt.title("Yaw")
+    # al-ilqr
+    al_ilqr_solver_param = ALILQRSolverParameter(
+        1e-3, 50, 50, 1e-4, 10, 0.5, 1e-5, 10, 1e-4)
+    al_ilqr_solver = ALILQRSolver(BicycleModel, state_cost_func, terminal_cost_func, in_con_cost_func, in_con_func, len(
+        best_rs_path.x) - 1, delta_t, al_ilqr_solver_param)
+    res_al_ilqr = al_ilqr_solver.Solve(x0, u0)
 
-            plt.subplot(412)
-            plt.plot(v_list)
-            plt.grid()
-            plt.title("Velocity")
+    # Viz ilqr and al_ilqr path
+    x_ilqr = res_ilqr['x_hist'][-1]
+    u_ilqr = res_ilqr['u_hist'][-1]
+    x_ilqr_list = []
+    y_ilqr_list = []
+    yaw_ilqr_list = []
+    v_ilqr_list = []
+    delta_ilqr_list = []
+    acc_ilqr_list = []
+    for j in range(len(x_ilqr)):
+        x_ilqr_list.append(x_ilqr[j][0])
+        y_ilqr_list.append(x_ilqr[j][1])
+        yaw_ilqr_list.append(x_ilqr[j][2])
+        v_ilqr_list.append(x_ilqr[j][3])
 
-            plt.subplot(413)
-            plt.plot(delta_list)
-            plt.grid()
-            plt.title("Delta")
+    for j in range(len(u_ilqr)):
+        delta_ilqr_list.append(u_ilqr[j][0])
+        acc_ilqr_list.append(u_ilqr[j][1])
 
-            plt.subplot(414)
-            plt.plot(acc_list)
-            plt.grid()
-            plt.title("Acceleration")
+    x_al_ilqr = res_al_ilqr['x_hist'][-1]
+    u_al_ilqr = res_al_ilqr['u_hist'][-1]
+    x_al_ilqr_list = []
+    y_al_ilqr_list = []
+    yaw_al_ilqr_list = []
+    v_al_ilqr_list = []
+    delta_al_ilqr_list = []
+    acc_al_ilqr_list = []
+    for j in range(len(x_al_ilqr)):
+        x_al_ilqr_list.append(x_al_ilqr[j][0])
+        y_al_ilqr_list.append(x_al_ilqr[j][1])
+        yaw_al_ilqr_list.append(x_al_ilqr[j][2])
+        v_al_ilqr_list.append(x_al_ilqr[j][3])
+
+    for j in range(len(u_al_ilqr)):
+        delta_al_ilqr_list.append(u_al_ilqr[j][0])
+        acc_al_ilqr_list.append(u_al_ilqr[j][1])
+
+    plt.figure(num=1)
+    plt.plot(x_ilqr_list,
+             y_ilqr_list, marker="o")
+    plt.plot(x_al_ilqr_list,
+             y_al_ilqr_list, marker="o")
+    plt.legend(["Reeds-sheps", "ILQR", "AL-ILQR"])
+    plt.figure(num=2)
+    plt.plot(CalculatePathCurvature(
+        x_ilqr_list, y_ilqr_list))
+    plt.plot(CalculatePathCurvature(
+        x_al_ilqr_list, y_al_ilqr_list))
+    plt.legend(["Reeds-sheps", "ILQR", "AL-ILQR"])
+    plt.grid()
+
+    plt.figure(num=3)
+    plt.subplot(411)
+    plt.plot(yaw_ilqr_list)
+    plt.plot(yaw_al_ilqr_list)
+    plt.legend(["ILQR", "AL-ILQR"])
+    plt.grid()
+    plt.title("Yaw")
+
+    plt.subplot(412)
+    plt.plot(v_ilqr_list)
+    plt.plot(v_al_ilqr_list)
+    plt.legend(["ILQR", "AL-ILQR"])
+    plt.grid()
+    plt.title("Velocity")
+
+    plt.subplot(413)
+    plt.plot(delta_ilqr_list)
+    plt.plot(delta_al_ilqr_list)
+    plt.plot([max_steer] * len(delta_ilqr_list), 'r')
+    plt.plot([-max_steer] * len(delta_ilqr_list), 'r')
+    plt.legend(["ILQR", "AL-ILQR", "Max Delta", "Min Delta"])
+    plt.grid()
+    plt.title("Delta")
+
+    plt.subplot(414)
+    plt.plot(acc_ilqr_list)
+    plt.plot(acc_al_ilqr_list)
+    plt.plot([max_acc] * len(acc_ilqr_list), 'r')
+    plt.plot([-max_acc] * len(acc_ilqr_list), 'r')
+    plt.legend(["ILQR", "AL-ILQR", "Max Acc", "Min Acc"])
+    plt.grid()
+    plt.title("Acceleration")
+
     plt.show()
 
 
