@@ -1,4 +1,4 @@
-# ILQR And AL-ILQR
+# ILQR AL-ILQR Implementation
 
 ## Resolution = 0.5m:  
 <img src=https://github.com/xilinnancheng/ilqr/blob/main/path_1.png width = "600" height="400"/><br/>
