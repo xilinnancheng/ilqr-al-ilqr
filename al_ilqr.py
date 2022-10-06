@@ -6,7 +6,7 @@ from numpy import diag
 
 
 class ALILQRSolverParameter:
-    def __init__(self, reg, al_ilqr_max_iter, ilqr_max_iter, line_search_beta_1, line_search_beta_2, line_search_gamma, J_tolerance, sigma_factor, constraint_tolerance, enable_auto_grad=True) -> None:
+    def __init__(self, reg, al_ilqr_max_iter, ilqr_max_iter, line_search_beta_1, line_search_beta_2, line_search_gamma, J_tolerance, sigma_factor, sigma_max, constraint_tolerance, enable_auto_grad=True) -> None:
         self.enable_auto_grad = enable_auto_grad
         self.reg = reg
         self.al_ilqr_max_iter = al_ilqr_max_iter
@@ -16,6 +16,7 @@ class ALILQRSolverParameter:
         self.line_search_gamma = line_search_gamma
         self.J_tolerance = J_tolerance
         self.sigma_factor = sigma_factor
+        self.sigma_max = sigma_max
         self.constraint_tolerance = constraint_tolerance
 
 
@@ -122,10 +123,8 @@ class ALILQRSolver:
         return x_new, u_new, J, delta_J
 
     def BackwardPass(self, x, u, mu, sigma):
-        es_lqr_system = self.BuildErrorStateLQRSystem(x, u, mu, sigma)
-
-        Vx = es_lqr_system['dldx'][-1]
-        Vxx = es_lqr_system['dldxdx'][-1]
+        Vx = self.terminal_cost_func_dx(x[-1])
+        Vxx = self.terminal_cost_func_dxdx(x[-1])
 
         fb = [None] * self.step
         ff = [None] * self.step
@@ -133,18 +132,23 @@ class ALILQRSolver:
         Quu_list = [None] * self.step
 
         for i in reversed(range(self.step)):
-            Qxx = es_lqr_system['dldxdx'][i] + \
-                es_lqr_system['dfdx'][i].T.dot(Vxx).dot(
-                es_lqr_system['dfdx'][i])
-            Quu = es_lqr_system['dldudu'][i] + \
-                es_lqr_system['dfdu'][i].T.dot(Vxx).dot(
-                es_lqr_system['dfdu'][i]) + es_lqr_system['didudu'][i]
-            Qux = es_lqr_system['dldudx'][i] + \
-                es_lqr_system['dfdu'][i].T.dot(Vxx).dot(
-                es_lqr_system['dfdx'][i])
-            Qx = es_lqr_system['dldx'][i] + es_lqr_system['dfdx'][i].T.dot(Vx)
-            Qu = es_lqr_system['dldu'][i] + es_lqr_system['dfdu'][i].T.dot(Vx)\
-                + es_lqr_system['didu'][i]
+            dfdx = self.system_dynamic_dx(x[i], u[i], self.delta_t)
+            dfdu = self.system_dynamic_du(x[i], u[i], self.delta_t)
+
+            dldx = self.state_cost_func_dx(x[i], u[i], i)
+            dldu = self.state_cost_func_du(x[i], u[i], i)
+            dldxdx = self.state_cost_func_dxdx(x[i], u[i], i)
+            dldudu = self.state_cost_func_dudu(x[i], u[i], i)
+            dldudx = self.state_cost_func_dudx(x[i], u[i], i)
+
+            didudu = self.in_con_cost_func_dudu(u[i], mu[i], sigma)
+            didu = self.in_con_cost_func_du(u[i], mu[i], sigma)
+
+            Qxx = dldxdx + dfdx.T.dot(Vxx).dot(dfdx)
+            Quu = dldudu + dfdu.T.dot(Vxx).dot(dfdu) + didudu
+            Qux = dldudx + dfdu.T.dot(Vxx).dot(dfdx)
+            Qx = dldx + dfdx.T.dot(Vx)
+            Qu = dldu + dfdu.T.dot(Vx) + didu
             Qu_list[i] = Qu
 
             inversed_Quu = self.regularized_persudo_inverse(
@@ -211,9 +215,10 @@ class ALILQRSolver:
         al_ilqr_iter = 0
         # al-ilqr main loop
         while True:
-            print("New al-ilqr iteration {0} starts ...".format(al_ilqr_iter))
+            print(
+                "ALILQR: New al-ilqr iteration {0} starts ...".format(al_ilqr_iter))
             if al_ilqr_iter >= self.param.al_ilqr_max_iter:
-                print("Reach ilqr maximum iteration number")
+                print("ALILQR: Reach ilqr maximum iteration number")
                 break
 
             J_opt = self.EvaluateTrajectoryCost(x, u, mu, sigma)
@@ -222,9 +227,10 @@ class ALILQRSolver:
             ilqr_iter = 0
             converged = False
             while not converged:
-                print("New ilqr iteration {0} starts ...".format(ilqr_iter))
+                print(
+                    "ALILQR: New ilqr iteration {0} starts ...".format(ilqr_iter))
                 if ilqr_iter >= self.param.ilqr_max_iter:
-                    print("Reach ilqr maximum iteration number")
+                    print("ALILQR: Reach ilqr maximum iteration number")
                     break
 
                 # Backward pass
@@ -236,12 +242,13 @@ class ALILQRSolver:
                 accept = False
                 while not accept:
                     if alpha < 1e-6:
-                        print("Line search fail to decrease cost function")
+                        print("ALILQR: Line search fail to decrease cost function")
                     # Forward pass
                     x_new, u_new, J_new, delta_J = self.ForwardPass(
                         x, u, K, k, alpha, Qu_list, Quu_list, mu, sigma)
                     z = (J_opt - J_new) / -delta_J
-                    print(J_opt, J_new, delta_J, z)
+                    print("ALILQR: J_opt:{0} J_new:{1} delta_J:{2} z:{3}".format(
+                        J_opt, J_new, delta_J, z))
                     if z > self.param.line_search_beta_1 and z < self.param.line_search_beta_2:
                         x = x_new
                         u = u_new
@@ -253,7 +260,7 @@ class ALILQRSolver:
                         converged = True
                         if verbose:
                             print(
-                                'Converged at iteration {0}; J={1}; reg={2}'.format(ilqr_iter, J_opt, self.param.reg))
+                                'ALILQR: Converged at iteration {0}; J={1}; reg={2}'.format(ilqr_iter, J_opt, self.param.reg))
                     J_opt = J_new
                     x_hist.append(x)
                     u_hist.append(u)
@@ -262,13 +269,13 @@ class ALILQRSolver:
 
             constraint_violation_infinity_norm = self.ConstraintViolationInfinitNorm(
                 u, mu, sigma)
-            print("New al-ilqr iteration {0} ends ... constraint violation {1}".format(
+            print("ALILQR: New al-ilqr iteration {0} ends ... constraint violation: {1}".format(
                 al_ilqr_iter, constraint_violation_infinity_norm))
             if constraint_violation_infinity_norm < self.param.constraint_tolerance:
                 break
 
             mu = self.UpdateMu(mu, sigma, u)
-            sigma = sigma * self.param.sigma_factor
+            sigma = min(sigma * self.param.sigma_factor, self.param.sigma_max)
             al_ilqr_iter += 1
 
         res_dict = {'x_hist': x_hist, 'u_hist': u_hist}

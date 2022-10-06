@@ -94,8 +94,8 @@ def main():
     wheel_base = 2.84
     max_steer = 0.5
     max_acc = 1.0
-    step_size = 0.5
-    delta_t = 1
+    step_size = 0.1
+    delta_t = 0.1
     max_curvature = math.tan(max_steer) / wheel_base
 
     # Rs path
@@ -120,11 +120,10 @@ def main():
     plt.title("Side Parking Scenario")
 
     # Viz rs path
-    for i in range(len(best_rs_path.x)):
-        plt.figure(num=1)
-        plt.plot(best_rs_path.x[i],
-                 best_rs_path.y[i], marker="o", color='g')
-        plt.grid()
+    plt.figure(num=1)
+    plt.plot(best_rs_path.x,
+             best_rs_path.y, marker="o", color='g')
+    plt.grid()
 
     plt.figure(num=2)
     plt.plot(CalculatePathCurvature(
@@ -149,14 +148,14 @@ def main():
     u0 = [np.array([0.0, 0.0])] * (len(best_rs_path.x) - 1)
 
     # ilqr
-    ilqr_solver_param = ILQRSolverParameter(1e-3, 50, 1e-4, 10, 0.5, 1e-4)
+    ilqr_solver_param = ILQRSolverParameter(1e-3, 50, -1e-4, 10, 0.5, 1e-4)
     ilqr_solver = ILQRSolver(BicycleModel, state_cost_func, terminal_cost_func, len(
         best_rs_path.x) - 1, delta_t, ilqr_solver_param)
     res_ilqr = ilqr_solver.Solve(x0, u0)
 
     # al-ilqr
     al_ilqr_solver_param = ALILQRSolverParameter(
-        1e-3, 50, 50, 1e-4, 10, 0.5, 1e-5, 10, 1e-4)
+        1e-3, 50, 50, -1e-4, 10, 0.5, 1e-5, 10, 1e6, 1e-4)
     al_ilqr_solver = ALILQRSolver(BicycleModel, state_cost_func, terminal_cost_func, in_con_cost_func, in_con_func, len(
         best_rs_path.x) - 1, delta_t, al_ilqr_solver_param)
     res_al_ilqr = al_ilqr_solver.Solve(x0, u0)

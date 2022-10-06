@@ -61,34 +61,6 @@ class ILQRSolver:
         J += self.terminal_cost_func(x[-1])
         return J
 
-    def BuildErrorStateLQRSystem(self, x, u):
-        dfdx = [None] * self.step
-        dfdu = [None] * self.step
-        dldx = [None] * (self.step + 1)
-        dldu = [None] * self.step
-        dldxdx = [None] * (self.step + 1)
-        dldudu = [None] * self.step
-        dldudx = [None] * self.step
-
-        # terminal state
-        dldxdx[-1] = self.terminal_cost_func_dxdx(x[-1])
-        dldx[-1] = self.terminal_cost_func_dx(x[-1])
-
-        # stage state
-        for i in reversed(range(self.step)):
-            dfdx[i] = self.system_dynamic_dx(x[i], u[i], self.delta_t)
-            dfdu[i] = self.system_dynamic_du(x[i], u[i], self.delta_t)
-
-            dldx[i] = self.state_cost_func_dx(x[i], u[i], i)
-            dldu[i] = self.state_cost_func_du(x[i], u[i], i)
-            dldxdx[i] = self.state_cost_func_dxdx(x[i], u[i], i)
-            dldudu[i] = self.state_cost_func_dudu(x[i], u[i], i)
-            dldudx[i] = self.state_cost_func_dudx(x[i], u[i], i)
-
-        es_lqr_system = {'dfdx': dfdx, 'dfdu': dfdu, 'dldx': dldx,
-                         'dldu': dldu, 'dldxdx': dldxdx, 'dldudu': dldudu, 'dldudx': dldudx}
-        return es_lqr_system
-
     def ForwardPass(self, x, u, k, d, alpha, Qu_list, Quu_list):
         x_new = []
         u_new = []
@@ -104,10 +76,8 @@ class ILQRSolver:
         return x_new, u_new, J, delta_J
 
     def BackwardPass(self, x, u):
-        es_lqr_system = self.BuildErrorStateLQRSystem(x, u)
-
-        Vx = es_lqr_system['dldx'][-1]
-        Vxx = es_lqr_system['dldxdx'][-1]
+        Vx = self.terminal_cost_func_dx(x[-1])
+        Vxx = self.terminal_cost_func_dxdx(x[-1])
 
         fb = [None] * self.step
         ff = [None] * self.step
@@ -115,17 +85,20 @@ class ILQRSolver:
         Quu_list = [None] * self.step
 
         for i in reversed(range(self.step)):
-            Qxx = es_lqr_system['dldxdx'][i] + \
-                es_lqr_system['dfdx'][i].T.dot(Vxx).dot(
-                es_lqr_system['dfdx'][i])
-            Quu = es_lqr_system['dldudu'][i] + \
-                es_lqr_system['dfdu'][i].T.dot(Vxx).dot(
-                es_lqr_system['dfdu'][i])
-            Qux = es_lqr_system['dldudx'][i] + \
-                es_lqr_system['dfdu'][i].T.dot(Vxx).dot(
-                es_lqr_system['dfdx'][i])
-            Qx = es_lqr_system['dldx'][i] + es_lqr_system['dfdx'][i].T.dot(Vx)
-            Qu = es_lqr_system['dldu'][i] + es_lqr_system['dfdu'][i].T.dot(Vx)
+            dfdx = self.system_dynamic_dx(x[i], u[i], self.delta_t)
+            dfdu = self.system_dynamic_du(x[i], u[i], self.delta_t)
+
+            dldx = self.state_cost_func_dx(x[i], u[i], i)
+            dldu = self.state_cost_func_du(x[i], u[i], i)
+            dldxdx = self.state_cost_func_dxdx(x[i], u[i], i)
+            dldudu = self.state_cost_func_dudu(x[i], u[i], i)
+            dldudx = self.state_cost_func_dudx(x[i], u[i], i)
+
+            Qxx = dldxdx + dfdx.T.dot(Vxx).dot(dfdx)
+            Quu = dldudu + dfdu.T.dot(Vxx).dot(dfdu)
+            Qux = dldudx + dfdu.T.dot(Vxx).dot(dfdx)
+            Qx = dldx + dfdx.T.dot(Vx)
+            Qu = dldu + dfdu.T.dot(Vx)
             Qu_list[i] = Qu
 
             inversed_Quu = self.regularized_persudo_inverse(
@@ -173,9 +146,9 @@ class ILQRSolver:
         iter = 0
         converged = False
         while not converged:
-            print("New iteration {0} starts ...".format(iter))
+            print("ILQR: New iteration {0} starts ...".format(iter))
             if iter >= self.param.max_iter:
-                print("Reach the maximum iteration number")
+                print("ILQR: Reach the maximum iteration number")
                 break
 
             # Backward pass
@@ -187,12 +160,13 @@ class ILQRSolver:
             accept = False
             while not accept:
                 if alpha < 1e-6:
-                    print("Line search fail to decrease cost function")
+                    print("ILQR:Line search fail to decrease cost function")
                 # Forward pass
                 x_new, u_new, J_new, delta_J = self.ForwardPass(
                     x, u, K, k, alpha, Qu_list, Quu_list)
                 z = (J_opt - J_new) / -delta_J
-                print(J_opt, J_new, delta_J, z)
+                print("ILQR: J_opt:{0} J_new:{1} delta_J:{2} z:{3}".format(
+                    J_opt, J_new, delta_J, z))
                 if z > self.param.line_search_beta_1 and z < self.param.line_search_beta_2:
                     x = x_new
                     u = u_new
@@ -209,7 +183,7 @@ class ILQRSolver:
                     converged = True
                     if verbose:
                         print(
-                            'Converged at iteration {0}; J={1}; reg={2}'.format(iter, J_opt, self.param.reg))
+                            'ILQR:Converged at iteration {0}; J={1}; reg={2}'.format(iter, J_opt, self.param.reg))
                 J_opt = J_new
 
         res_dict = {'x_hist': x_hist, 'u_hist': u_hist, 'J_hist': J_hist}
