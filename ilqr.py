@@ -133,7 +133,7 @@ class ILQRSolver:
         return x_init
 
     def Solve(self, x0, u_init, verbose=True):
-        print("============== ILQR starts ==============")
+        print("============== ILQR starts ===============")
         # Init
         u = u_init
         x = self.InitTrajectory(x0, u)
