@@ -9,3 +9,13 @@
 <img src=https://github.com/xilinnancheng/ilqr/blob/main/path_2.png width = "600" height="400"/><br/>
 <img src=https://github.com/xilinnancheng/ilqr/blob/main/path_curvature_2.png width = "600" height="400"/><br/>
 <img src=https://github.com/xilinnancheng/ilqr/blob/main/state_2.png width = "600" height="400"/><br/>
+
+# Reference
+1.ILQR:http://roboticexplorationlab.org/papers/iLQR_Tutorial.pdf
+  
+2.AL-ILQR:https://bjack205.github.io/papers/AL_iLQR_Tutorial.pdf
+
+3.https://zhuanlan.zhihu.com/p/91865627
+
+4. https://github.com/navigator8972/pylqr
+
