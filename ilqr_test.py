@@ -75,7 +75,18 @@ def InequalityConstraintFunction(u, mu, sigma, max_delta, max_acc):
     return np.array([max(u[0] - max_delta + mu[0]/sigma, 0.0), max(-u[0] - max_delta + mu[1]/sigma, 0.0), max(u[1] - max_acc + mu[2]/sigma, 0.0), max(-u[1] - max_acc + mu[3]/sigma, 0.0)])
 
 
-def BicycleModel(x_curr, u_curr, delta_t):
+def BicycleModel(x_curr, u_curr):
+    wheel_base = 2.84
+    x_dot = []
+    x_dot.append(x_curr[3] * np.cos(x_curr[2]))
+    x_dot.append(x_curr[3] * np.sin(x_curr[2]))
+    x_dot.append(x_curr[3] /
+                 wheel_base * np.tan(u_curr[0]))
+    x_dot.append(u_curr[1])
+    return np.array(x_dot)
+
+
+def BicycleModelEulerMethod(x_curr, u_curr, delta_t):
     wheel_base = 2.84
     x_next = []
 
@@ -87,6 +98,13 @@ def BicycleModel(x_curr, u_curr, delta_t):
     return np.array(x_next)
 
 
+def BicycleModelRK3(x_curr, u_curr, delta_t):
+    k1 = BicycleModel(x_curr, u_curr) * delta_t
+    k2 = BicycleModel(x_curr + 0.5 * k1, u_curr) * delta_t
+    k3 = BicycleModel(x_curr - k1 + 2 * k2, u_curr) * delta_t
+    return x_curr + (k1 + 4 * k2 + k3)/6
+
+
 def main():
     print("ILQR Smoother Demo")
     start_pose = [30, 10, np.deg2rad(0.0)]
@@ -94,8 +112,8 @@ def main():
     wheel_base = 2.84
     max_steer = 0.5
     max_acc = 1.0
-    step_size = 0.1
-    delta_t = 0.1
+    step_size = 0.5
+    delta_t = 1
     max_curvature = math.tan(max_steer) / wheel_base
 
     # Rs path
@@ -149,14 +167,14 @@ def main():
 
     # ilqr
     ilqr_solver_param = ILQRSolverParameter(1e-3, 50, -1e-4, 10, 0.5, 1e-4)
-    ilqr_solver = ILQRSolver(BicycleModel, state_cost_func, terminal_cost_func, len(
+    ilqr_solver = ILQRSolver(BicycleModelRK3, state_cost_func, terminal_cost_func, len(
         best_rs_path.x) - 1, delta_t, ilqr_solver_param)
     res_ilqr = ilqr_solver.Solve(x0, u0)
 
     # al-ilqr
     al_ilqr_solver_param = ALILQRSolverParameter(
         1e-3, 50, 50, -1e-4, 10, 0.5, 1e-5, 10, 1e6, 1e-4)
-    al_ilqr_solver = ALILQRSolver(BicycleModel, state_cost_func, terminal_cost_func, in_con_cost_func, in_con_func, len(
+    al_ilqr_solver = ALILQRSolver(BicycleModelRK3, state_cost_func, terminal_cost_func, in_con_cost_func, in_con_func, len(
         best_rs_path.x) - 1, delta_t, al_ilqr_solver_param)
     res_al_ilqr = al_ilqr_solver.Solve(x0, u0)
 
