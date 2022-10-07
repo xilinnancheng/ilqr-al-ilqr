@@ -10,10 +10,15 @@
 <img src=https://github.com/xilinnancheng/ilqr/blob/main/path_curvature_3.png width = "600" height="400"/><br/>
 <img src=https://github.com/xilinnancheng/ilqr/blob/main/state_3.png width = "600" height="400"/><br/>
 
-### Resolution = 0.1m:  
+### Euler Method Resolution = 0.1m:  
 <img src=https://github.com/xilinnancheng/ilqr/blob/main/path_2.png width = "600" height="400"/><br/>
 <img src=https://github.com/xilinnancheng/ilqr/blob/main/path_curvature_2.png width = "600" height="400"/><br/>
 <img src=https://github.com/xilinnancheng/ilqr/blob/main/state_2.png width = "600" height="400"/><br/>
+
+### Runge-Kutta3 Resolution = 0.1m:  
+<img src=https://github.com/xilinnancheng/ilqr/blob/main/path_4.png width = "600" height="400"/><br/>
+<img src=https://github.com/xilinnancheng/ilqr/blob/main/path_curvature_4.png width = "600" height="400"/><br/>
+<img src=https://github.com/xilinnancheng/ilqr/blob/main/state_4.png width = "600" height="400"/><br/>
 
 # Reference
 1.ILQR:http://roboticexplorationlab.org/papers/iLQR_Tutorial.pdf
