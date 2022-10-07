@@ -118,6 +118,11 @@ class ALILQRSolver:
             x_new.append(self.system_dynamic(x_new[i], u_new[i], self.delta_t))
             delta_J += alpha * (d[i].T.dot(Qu_list[i]) +
                                 0.5 * alpha * d[i].T.dot(Quu_list[i]).dot(d[i]))
+        delta_x_final = x_new[-1] - x[-1]
+        delta_J += 0.5 * \
+            delta_x_final.T.dot(
+                self.terminal_cost_func_dxdx(x[-1])).dot(delta_x_final)
+        + self.terminal_cost_func_dx(x[-1]).T.dot(delta_x_final)
 
         J = self.EvaluateTrajectoryCost(x_new, u_new, mu, sigma)
         return x_new, u_new, J, delta_J
@@ -249,7 +254,7 @@ class ALILQRSolver:
                     z = (J_opt - J_new) / -delta_J
                     print("ALILQR: J_opt:{0} J_new:{1} delta_J:{2} z:{3}".format(
                         J_opt, J_new, delta_J, z))
-                    if z > self.param.line_search_beta_1 and z < self.param.line_search_beta_2:
+                    if ((J_opt - J_new)/J_opt < self.param.J_tolerance and (J_opt - J_new)/J_opt > 0.0) or z > self.param.line_search_beta_1 and z < self.param.line_search_beta_2:
                         x = x_new
                         u = u_new
                         accept = True

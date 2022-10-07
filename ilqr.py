@@ -72,6 +72,12 @@ class ILQRSolver:
             delta_J += alpha * (d[i].T.dot(Qu_list[i]) +
                                 0.5 * alpha * d[i].T.dot(Quu_list[i]).dot(d[i]))
 
+        delta_x_final = x_new[-1] - x[-1]
+        delta_J += 0.5 * \
+            delta_x_final.T.dot(
+                self.terminal_cost_func_dxdx(x[-1])).dot(delta_x_final)
+        + self.terminal_cost_func_dx(x[-1]).T.dot(delta_x_final)
+
         J = self.EvaluateTrajectoryCost(x_new, u_new)
         return x_new, u_new, J, delta_J
 
