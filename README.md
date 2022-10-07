@@ -1,11 +1,16 @@
 # ILQR AL-ILQR Implementation
 
-## Resolution = 0.5m:  
+### Euler Method Resolution = 0.5m:  
 <img src=https://github.com/xilinnancheng/ilqr/blob/main/path_1.png width = "600" height="400"/><br/>
 <img src=https://github.com/xilinnancheng/ilqr/blob/main/path_curvature_1.png width = "600" height="400"/><br/>
 <img src=https://github.com/xilinnancheng/ilqr/blob/main/state_1.png width = "600" height="400"/><br/>
 
-## Resolution = 0.1m:  
+### Runge-Kutta3 Resolution = 0.5m:  
+<img src=https://github.com/xilinnancheng/ilqr/blob/main/path_3.png width = "600" height="400"/><br/>
+<img src=https://github.com/xilinnancheng/ilqr/blob/main/path_curvature_3.png width = "600" height="400"/><br/>
+<img src=https://github.com/xilinnancheng/ilqr/blob/main/state_3.png width = "600" height="400"/><br/>
+
+### Resolution = 0.1m:  
 <img src=https://github.com/xilinnancheng/ilqr/blob/main/path_2.png width = "600" height="400"/><br/>
 <img src=https://github.com/xilinnancheng/ilqr/blob/main/path_curvature_2.png width = "600" height="400"/><br/>
 <img src=https://github.com/xilinnancheng/ilqr/blob/main/state_2.png width = "600" height="400"/><br/>
@@ -21,3 +26,8 @@
 
 5.https://bicmr.pku.edu.cn/~wenzw/optbook/opt1.pdf
 
+6.https://github.com/RoboticExplorationLab/RobotDynamics.jl
+
+7.https://github.com/RoboticExplorationLab/TrajectoryOptimization.jl
+
+8.https://github.com/RoboticExplorationLab/Altro.jl
