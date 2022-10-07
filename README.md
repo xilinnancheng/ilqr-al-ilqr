@@ -29,3 +29,5 @@
 6.https://github.com/RoboticExplorationLab/RobotDynamics.jl
 
 7.https://github.com/RoboticExplorationLab/TrajectoryOptimization.jl
+
+8.https://github.com/RoboticExplorationLab/Altro.jl
