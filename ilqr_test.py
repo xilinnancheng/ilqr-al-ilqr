@@ -112,8 +112,8 @@ def main():
     wheel_base = 2.84
     max_steer = 0.5
     max_acc = 1.0
-    step_size = 0.5
-    delta_t = 1
+    step_size = 0.1
+    delta_t = 0.1
     max_curvature = math.tan(max_steer) / wheel_base
 
     # Rs path
