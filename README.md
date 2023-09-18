@@ -36,3 +36,5 @@
 7.https://github.com/RoboticExplorationLab/TrajectoryOptimization.jl
 
 8.https://github.com/RoboticExplorationLab/Altro.jl
+
+9.https://openreview.net/pdf?id=BNDO0dxvjD
