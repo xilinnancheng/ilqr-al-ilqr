@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iLQR / AL-iLQR 项目流程图</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card-bg: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --heading: #58a6ff;
+            --accent: #f0883e;
+            --green: #3fb950;
+            --muted: #8b949e;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #1a2332 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 40px 24px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            color: var(--heading);
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: var(--muted);
+            font-size: 1.05rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px 24px;
+        }
+
+        .section {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 36px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 18px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-header .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .badge.overview  { background: #1f6feb33; color: #58a6ff; }
+        .badge.ilqr     { background: #3fb95033; color: #3fb950; }
+        .badge.alilqr   { background: #f0883e33; color: #f0883e; }
+        .badge.modules  { background: #a371f733; color: #a371f7; }
+        .badge.compare  { background: #db6d2833; color: #db6d28; }
+
+        .section-header h2 {
+            font-size: 1.25rem;
+            color: var(--text);
+        }
+
+        .mermaid-wrapper {
+            padding: 24px;
+            overflow-x: auto;
+        }
+
+        .mermaid-wrapper .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+
+        /* Table */
+        .table-wrapper {
+            padding: 0 24px 24px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+
+        thead th {
+            background: #21262d;
+            color: var(--heading);
+            text-align: left;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            font-weight: 600;
+        }
+
+        tbody td {
+            padding: 10px 16px;
+            border: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        tbody tr:nth-child(even) { background: #0d111744; }
+
+        .footer {
+            text-align: center;
+            padding: 24px;
+            color: var(--muted);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            margin-top: 40px;
+        }
+
+        .footer a { color: var(--heading); text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+
+        /* Nav */
+        .toc {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 32px;
+        }
+
+        .toc a {
+            color: var(--text);
+            text-decoration: none;
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 0.88rem;
+            transition: all 0.2s;
+        }
+
+        .toc a:hover {
+            border-color: var(--heading);
+            color: var(--heading);
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.5rem; }
+            .container { padding: 16px 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🚗 iLQR &amp; AL-iLQR 轨迹优化项目</h1>
+    <p>类车机器人侧方停车 — 从 Reeds-Shepp 参考路径到约束满足的平滑轨迹</p>
+</div>
+
+<div class="container">
+
+    <!-- TOC -->
+    <nav class="toc">
+        <a href="#overview">📐 系统总览</a>
+        <a href="#ilqr">🟦 iLQR 算法</a>
+        <a href="#alilqr">🟥 AL-iLQR 算法</a>
+        <a href="#modules">🧩 模块关系</a>
+        <a href="#compare">📊 对比表</a>
+    </nav>
+
+    <!-- 1. Overview -->
+    <div class="section" id="overview">
+        <div class="section-header">
+            <span class="badge overview">总览</span>
+            <h2>1. 系统总体流程图</h2>
+        </div>
+        <div class="mermaid-wrapper">
+            <div class="mermaid">
+flowchart TD
+    A["🚀 开始: main()"] --> B["📐 定义起终点位姿<br/>start_pose / goal_pose"]
+    B --> C["🗺️ Reeds-Shepp 路径规划<br/>ReedsSheppPathPlanning.py"]
+    C --> C1["生成 48 种 RS 曲线<br/>S | L | R 三段式组合"]
+    C1 --> C2["选择代价最小的参考路径<br/>best_rs_path"]
+    C2 --> D["🎯 定义代价函数 & 不等式约束<br/>StateCost / TerminalCost<br/>InequalityConstraint"]
+    D --> E{"选择求解器"}
+    E --> E1["🟦 iLQR<br/>ilqr.py<br/>无约束轨迹优化"]
+    E --> E2["🟥 AL-iLQR<br/>al_ilqr.py<br/>带控制量约束"]
+    E1 --> F["📊 matplotlib 可视化对比"]
+    E2 --> F
+    F --> G["🏁 输出四张图:<br/>① 路径轨迹<br/>② 路径曲率<br/>③ 横摆角 & 速度<br/>④ 转向角 & 加速度"]
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. iLQR -->
+    <div class="section" id="ilqr">
+        <div class="section-header">
+            <span class="badge ilqr">iLQR</span>
+            <h2>2. iLQR 算法详细流程</h2>
+        </div>
+        <div class="mermaid-wrapper">
+            <div class="mermaid">
+flowchart TD
+    subgraph ILQR["ILQRSolver.Solve() —— 单层循环"]
+        I0["🔧 初始化<br/>x = InitTrajectory(x0, u)<br/>J_opt = EvaluateTrajectoryCost(x, u)"] --> I1{"迭代条件<br/>未收敛 & iter &lt; max_iter ?"}
+        I1 -->|"✅ Yes"| I2["⬅️ Backward Pass<br/>Riccati 逆向扫描"]
+
+        I2 --> I2A["从 t = N-1 到 0<br/>反向遍历每个时间步"]
+        I2A --> I2B["计算 Q 函数导数<br/>Qxx, Quu, Qux, Qx, Qu"]
+        I2B --> I2C["正则化伪逆<br/>Quu⁻¹ = SVD(Quu + reg·I)⁻¹"]
+        I2C --> I2D["反馈增益 fb = -Quu⁻¹·Qux<br/>前馈增益 ff = -Quu⁻¹·Qu"]
+        I2D --> I2E["更新值函数导数<br/>Vxx, Vx 向后传播"]
+
+        I2E --> I3["🔍 Line Search 线搜索<br/>初始化 α = 1.0"]
+
+        I3 --> I4["➡️ Forward Pass<br/>δx = x_new[i] - x[i]<br/>u_new = u + fb·δx + α·ff<br/>x_new = dynamics(x_new, u_new)"]
+        I4 --> I4A["计算代价变化<br/>ΔJ, z = (J_opt - J_new) / -ΔJ"]
+
+        I4A --> I5{"接受条件<br/>β₁ &lt; z &lt; β₂ ?"}
+        I5 -->|"❌ No"| I6["缩小步长<br/>α = α × γ"]
+        I6 --> I7{"α &lt; 1e-6 ?"}
+        I7 -->|"❌ No"| I4
+        I7 -->|"⚠️ Yes"| I8["警告: 线搜索失败<br/>但继续执行"]
+        I5 -->|"✅ Yes"| I9["接受新轨迹<br/>x = x_new<br/>u = u_new<br/>accept = true"]
+
+        I9 --> I10{"收敛判断<br/>|J_opt - J_new| / J_opt<br/>&lt; tolerance ?"}
+        I10 -->|"✅ Yes"| I11["🎉 收敛! 退出循环"]
+        I10 -->|"❌ No"| I12["J_opt = J_new<br/>iter += 1"]
+        I12 --> I1
+        I1 -->|"⏰ No"| I13["达到最大迭代次数"]
+    end
+    I11 --> R["返回结果字典<br/>{x_hist, u_hist, J_hist}"]
+    I13 --> R
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. AL-iLQR -->
+    <div class="section" id="alilqr">
+        <div class="section-header">
+            <span class="badge alilqr">AL-iLQR</span>
+            <h2>3. AL-iLQR 算法详细流程（双层循环）</h2>
+        </div>
+        <div class="mermaid-wrapper">
+            <div class="mermaid">
+flowchart TD
+    subgraph OUTER["ALILQRSolver.Solve() —— 外层: 增广拉格朗日"]
+        A0["🔧 初始化<br/>x = InitTrajectory(x0, u)<br/>σ = 1.0, μ = 0<br/>al_iter = 0"] --> A1{"外层循环<br/>al_iter &lt; max_iter ?"}
+        A1 -->|"✅ Yes"| A2["📐 评估当前增广拉格朗日代价<br/>J_opt = StateCost + TerminalCost<br/>+ Σ AL_Penalty(μ, σ, u)"]
+
+        A2 --> A3["━━━ 内层 iLQR 循环 ━━━"]
+
+        A3 --> A3A["⬅️ Backward Pass<br/>Riccati + 约束梯度项<br/>didu, didudu"]
+        A3A --> A3B["🔍 Line Search<br/>α = 1.0, 逐步缩小"]
+        A3B --> A3C["➡️ Forward Pass<br/>含 AL 惩罚项代价评估"]
+        A3C --> A3D{"iLQR 收敛?<br/>|ΔJ|/J &lt; tolerance?"}
+        A3D -->|"❌ No"| A3E["ilqr_iter++"]
+        A3E --> A3A
+        A3D -->|"✅ Yes"| A4["📏 计算约束违反度<br/>‖g(u)‖∞ = max|violation|"]
+
+        A4 --> A5{"约束满足?<br/>‖g(u)‖∞ &lt;<br/>constraint_tolerance ?"}
+        A5 -->|"✅ Yes"| A6["🎉 约束满足<br/>退出外层循环"]
+        A5 -->|"❌ No"| A7["📈 更新乘子 μ<br/>μ_new[j] = max(0, μ[j] + σ·g_j(u))"]
+        A7 --> A8["📈 增大惩罚因子 σ<br/>σ = min(σ × factor, σ_max)"]
+        A8 --> A9["al_iter += 1"]
+        A9 --> A1
+        A1 -->|"⏰ No"| A10["达到最大 AL 迭代次数"]
+    end
+    A6 --> R["返回结果字典<br/>{x_hist, u_hist}"]
+    A10 --> R
+
+    style A3 fill:#1f6feb22,stroke:#1f6feb,stroke-width:2px
+    style A3A fill:#1f6feb22,stroke:#1f6feb
+    style A3B fill:#1f6feb22,stroke:#1f6feb
+    style A3C fill:#1f6feb22,stroke:#1f6feb
+    style A3D fill:#1f6feb22,stroke:#1f6feb
+    style A3E fill:#1f6feb22,stroke:#1f6feb
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Module Relations -->
+    <div class="section" id="modules">
+        <div class="section-header">
+            <span class="badge modules">模块</span>
+            <h2>4. 模块依赖关系图</h2>
+        </div>
+        <div class="mermaid-wrapper">
+            <div class="mermaid">
+flowchart LR
+    subgraph L1["🗺️ 路径规划层"]
+        RS["ReedsSheppPathPlanning.py<br/>━━━━━━━━━━━━━━━━━━<br/>• generate_path()<br/>• 48 种 RS 曲线组合<br/>• S / L / R 三段式<br/>• 输出参考 (x, y, yaw)"]
+    end
+
+    subgraph L2["⚙️ 动力学 & 代价层"]
+        DYN["BicycleModel<br/>━━━━━━━━━━━━━━━━━━<br/>• 状态: [x, y, θ, v]<br/>• 控制: [δ, a]<br/>• Euler / RK3 积分<br/>• wheelbase = 2.84 m"]
+        COST["代价 & 约束<br/>━━━━━━━━━━━━━━━━━━<br/>• StateCost: 跟踪误差<br/>• TerminalCost: 终端误差<br/>• InConCost: AL 惩罚<br/>• InConFunc: 约束函数"]
+    end
+
+    subgraph L3["🧠 求解器层"]
+        ILQR["ILQRSolver<br/>━━━━━━━━━━━━━━━━━━<br/>• BackwardPass<br/>  └─ Riccati 逆向扫描<br/>• ForwardPass<br/>  └─ 线搜索轨迹前滚<br/>• regularized_persudo_inverse<br/>  └─ SVD 正则化伪逆"]
+        AL["ALILQRSolver<br/>━━━━━━━━━━━━━━━━━━<br/>• 外层: UpdateMu + σ 倍增<br/>• 内层: 带约束梯度 iLQR<br/>• ConstraintViolationInfinitNorm<br/>  └─ 约束违反检测"]
+    end
+
+    subgraph L4["📊 可视化层"]
+        VIZ["ilqr_test.py main()<br/>━━━━━━━━━━━━━━━━━━<br/>• Fig1: XY 路径对比<br/>• Fig2: 曲率对比<br/>• Fig3: 状态时序图<br/>  └─ Yaw / Velocity<br/>  └─ Delta / Acc"]
+    end
+
+    RS -->|"参考路径"| COST
+    DYN -->|"JAX 自动微分"| ILQR
+    DYN -->|"JAX 自动微分"| AL
+    COST -->|"代价函数"| ILQR
+    COST -->|"代价 + 约束"| AL
+    ILQR -->|"无约束解"| VIZ
+    AL -->|"约束满足解"| VIZ
+
+    style L1 fill:#a371f711,stroke:#a371f7
+    style L2 fill:#f0883e11,stroke:#f0883e
+    style L3 fill:#58a6ff11,stroke:#58a6ff
+    style L4 fill:#3fb95011,stroke:#3fb950
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Compare Table -->
+    <div class="section" id="compare">
+        <div class="section-header">
+            <span class="badge compare">对比</span>
+            <h2>5. iLQR vs AL-iLQR 对比</h2>
+        </div>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>维度</th>
+                        <th>🟦 iLQR</th>
+                        <th>🟥 AL-iLQR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>求解问题</strong></td>
+                        <td>无约束轨迹优化</td>
+                        <td>带不等式约束的轨迹优化<br/>(控制量 u 的上下界)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>算法结构</strong></td>
+                        <td>单层循环:<br/>BackwardPass → LineSearch → ForwardPass</td>
+                        <td><strong>双层循环:</strong><br/>外层: 更新 μ, σ (增广拉格朗日)<br/>内层: 带约束梯度的 iLQR</td>
+                    </tr>
+                    <tr>
+                        <td><strong>BackwardPass</strong></td>
+                        <td>Riccati 逆向扫描:<br/>Quu = dldudu + dfduᵀ·Vxx·dfdu</td>
+                        <td>Riccati + <strong>约束梯度项</strong>:<br/>Quu = dldudu + dfduᵀ·Vxx·dfdu + <strong>didudu</strong><br/>Qu  = dldu   + dfduᵀ·Vx        + <strong>didu</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>代价函数</strong></td>
+                        <td>J = Σ StateCost + TerminalCost<br/>跟踪误差二次型</td>
+                        <td>J = Σ (StateCost + <strong>AL_Penalty</strong>) + TerminalCost<br/>AL_Penalty = ½σ·‖max(μ/σ+g(u), 0)‖²</td>
+                    </tr>
+                    <tr>
+                        <td><strong>约束处理方式</strong></td>
+                        <td>❌ 不处理约束<br/>控制量可能超出界限</td>
+                        <td>✅ 增广拉格朗日法<br/>通过惩罚 + 乘子逐步逼近约束</td>
+                    </tr>
+                    <tr>
+                        <td><strong>收敛条件</strong></td>
+                        <td>代价变化 |ΔJ|/J &lt; J_tolerance</td>
+                        <td>约束违反度 ‖g(u)‖∞ &lt; constraint_tolerance</td>
+                    </tr>
+                    <tr>
+                        <td><strong>超参数</strong></td>
+                        <td>reg, max_iter, β₁, β₂, γ, J_tol</td>
+                        <td>同上 + al_max_iter, σ_factor, σ_max, constraint_tol</td>
+                    </tr>
+                    <tr>
+                        <td><strong>适用场景</strong></td>
+                        <td>没有严格控制量限制的平滑问题</td>
+                        <td>有明确控制量约束的场景<br/>(如 |δ| ≤ 0.5 rad, |a| ≤ 1.0 m/s²)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<div class="footer">
+    生成自 <a href="https://github.com/xilinnancheng/ilqr">ilqr-al-ilqr</a> 项目 &nbsp;|&nbsp;
+    使用 <a href="https://mermaid.js.org">Mermaid.js</a> 渲染 &nbsp;|&nbsp;
+    2026-06-07
+</div>
+
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        themeVariables: {
+            primaryColor: '#1f6feb',
+            primaryTextColor: '#c9d1d9',
+            primaryBorderColor: '#30363d',
+            lineColor: '#58a6ff',
+            secondaryColor: '#161b22',
+            tertiaryColor: '#0d1117',
+            fontSize: '15px',
+        },
+        flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis',
+            padding: 20,
+        },
+    });
+</script>
+
+</body>
+</html>
